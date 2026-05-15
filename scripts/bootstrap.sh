@@ -65,7 +65,11 @@ if compgen -G "$WORKFLOWS_DIR/*.json" >/dev/null; then
 fi
 
 # Start ComfyUI in background, redirecting logs
-nohup python "$COMFYUI_DIR/main.py" --listen "$COMFY_HOST" --port "$COMFY_PORT" --disable-auto-launch \
+# --disable-smart-memory: skip the pinned-memory pre-allocation that hangs
+#   on MooseFS network filesystem (locked the pod for >5 min at startup)
+# --gpu-only: avoid CPU<->GPU weight offload; A100 80GB fits Sulphur-2 bf16 easily
+nohup python "$COMFYUI_DIR/main.py" --listen "$COMFY_HOST" --port "$COMFY_PORT" \
+  --disable-auto-launch --disable-smart-memory --gpu-only \
   > /workspace/comfyui.log 2>&1 &
 echo "[bootstrap] comfyui pid=$!"
 
