@@ -102,6 +102,10 @@ When `wait` reports `API healthy`, you're ready. URLs:
 
 ## 3. Calling the API
 
+Full reference with all endpoints, params, advanced overrides, error table, and a Python client: **[docs/API.md](docs/API.md)**.
+
+The short version:
+
 ### Health
 ```bash
 curl https://<pod_id>-8000.proxy.runpod.net/health
