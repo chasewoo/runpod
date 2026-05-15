@@ -6,7 +6,10 @@ from pydantic import BaseModel, Field
 
 
 Mode = Literal["t2v", "i2v"]
-Variant = Literal["base", "distil"]
+# base    LTX 2.3 + Sulphur LoRA + LTX distill LoRAs, 30 sampling steps
+# distil  same model stack, 8 sampling steps (uses the distill LoRAs)
+# full    sulphur_dev_bf16 standalone, no LoRA stack — purest Sulphur, 8 steps
+Variant = Literal["base", "distil", "full"]
 
 
 class GenerateRequest(BaseModel):

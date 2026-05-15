@@ -129,8 +129,9 @@
           <div>
             <label for="variant">Variant</label>
             <select id="variant">
-              <option value="distil" selected>Distilled (fast, 8 steps)</option>
-              <option value="base">Base (quality, 30 steps)</option>
+              <option value="distil" selected>Distilled (fast, LoRA stack, 8 steps)</option>
+              <option value="base">Base (quality, LoRA stack, 30 steps)</option>
+              <option value="full">Full (pure Sulphur baked bf16, 8 steps)</option>
             </select>
           </div>
         </div>
@@ -287,9 +288,10 @@ $("mode").addEventListener("change", () => {
 
 // Variant defaults
 $("variant").addEventListener("change", () => {
-  const distil = $("variant").value === "distil";
-  $("steps").value = distil ? 8 : 30;
-  $("cfg").value = distil ? 2.5 : 3.0;
+  const v = $("variant").value;
+  // base = 30 steps; distil + full = 8 steps
+  $("steps").value = v === "base" ? 30 : 8;
+  $("cfg").value = v === "base" ? 3.0 : 2.5;
 });
 
 $("seed-rand").addEventListener("click", () => {

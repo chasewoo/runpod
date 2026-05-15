@@ -123,6 +123,9 @@ python "$REPO_DIR/scripts/ui_to_api.py" "$WORKFLOWS_DIR" \
   --comfy-url "http://127.0.0.1:$COMFY_PORT" --inplace || true
 # Re-run the rename+sage patch on the freshly-converted JSONs, then autotag
 python "$REPO_DIR/scripts/setup_workflows.py" || true
+# Derive the `full` variants (sulphur_dev_bf16 standalone, no LoRA stack)
+python "$REPO_DIR/scripts/build_full_workflows.py" || true
+python "$REPO_DIR/scripts/autotag_workflows.py" "$WORKFLOWS_DIR" || true
 
 # ── Start FastAPI in foreground so the container stays alive
 cd "$REPO_DIR"
