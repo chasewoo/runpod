@@ -58,6 +58,19 @@
     .dropzone.has-image { padding: 0; border-style: solid; overflow: hidden; }
     .dropzone img { width: 100%; display: block; }
     .meta { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .preset-row {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;
+    }
+    .chip {
+      background: var(--panel-2); border: 1px solid var(--border);
+      color: var(--text); padding: 5px 10px; border-radius: 6px;
+      font-size: 12px; cursor: pointer; font-family: inherit;
+      transition: all .12s ease;
+    }
+    .chip:hover { border-color: var(--accent); }
+    .chip.active {
+      background: var(--accent); border-color: var(--accent); color: white;
+    }
     .progress {
       height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden;
     }
@@ -143,10 +156,19 @@
           <div class="meta" id="img-meta"></div>
         </div>
 
-        <div class="row" style="margin-top:14px">
+        <label style="margin-top:14px">Size</label>
+        <div class="preset-row" id="presets">
+          <button type="button" class="chip" data-w="832"  data-h="480"  data-label="480p 横">480p 横</button>
+          <button type="button" class="chip" data-w="480"  data-h="832"  data-label="480p 竖">480p 竖</button>
+          <button type="button" class="chip" data-w="1280" data-h="736"  data-label="720p 横">720p 横</button>
+          <button type="button" class="chip" data-w="736"  data-h="1280" data-label="720p 竖">720p 竖</button>
+          <button type="button" class="chip" data-w="1920" data-h="1088" data-label="1080p 横">1080p 横</button>
+          <button type="button" class="chip" data-w="1088" data-h="1920" data-label="1080p 竖">1080p 竖</button>
+        </div>
+        <div class="row">
           <div>
             <label for="width">Width</label>
-            <input id="width" type="number" min="256" max="1920" step="32" value="704" />
+            <input id="width" type="number" min="256" max="1920" step="32" value="832" />
           </div>
           <div>
             <label for="height">Height</label>
@@ -297,6 +319,24 @@ $("variant").addEventListener("change", () => {
 $("seed-rand").addEventListener("click", () => {
   $("seed").value = Math.floor(Math.random() * 1e9);
 });
+
+// Size presets
+function syncPresetState() {
+  const w = +$("width").value, h = +$("height").value;
+  document.querySelectorAll("#presets .chip").forEach(c => {
+    c.classList.toggle("active", +c.dataset.w === w && +c.dataset.h === h);
+  });
+}
+document.querySelectorAll("#presets .chip").forEach(c => {
+  c.addEventListener("click", () => {
+    $("width").value  = c.dataset.w;
+    $("height").value = c.dataset.h;
+    syncPresetState();
+  });
+});
+$("width").addEventListener("input", syncPresetState);
+$("height").addEventListener("input", syncPresetState);
+syncPresetState();
 
 // ──────────────────────────────────────────────────────────────
 // Submit
