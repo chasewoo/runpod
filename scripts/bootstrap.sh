@@ -45,8 +45,10 @@ done
 rm -rf "$COMFYUI_DIR/output"
 ln -s "$OUTPUTS_DIR" "$COMFYUI_DIR/output"
 
-# API deps
-pip install -q fastapi==0.115.6 'uvicorn[standard]==0.32.1' httpx==0.27.2 \
+# API deps + dep pin: ComfyUI works with transformers 4.x; image ships 5.8 which
+# wants huggingface_hub>=1.5. Downgrade transformers to keep our HF pin.
+pip install -q "transformers>=4.45,<5" \
+              fastapi==0.115.6 'uvicorn[standard]==0.32.1' httpx==0.27.2 \
               websockets==13.1 python-multipart==0.0.12 pydantic==2.9.2 \
               huggingface_hub==0.26.2 hf_transfer==0.1.8 pillow==11.0.0
 

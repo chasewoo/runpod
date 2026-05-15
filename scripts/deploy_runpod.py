@@ -20,6 +20,7 @@ import json
 import os
 import sys
 import time
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -78,25 +79,17 @@ def deploy(args: argparse.Namespace) -> None:
     gpu_id = find_gpu_id(args.gpu)
     print(f"[deploy] gpu_type_id={gpu_id}")
 
-    repo_url = args.repo_url
-    branch = args.branch
-    docker_args = (
-        "bash -lc '"
-        "set -e; "
-        "mkdir -p /workspace && cd /workspace; "
-        f"if [ ! -d runsulphur ]; then git clone --depth 1 -b {branch} {repo_url} runsulphur; "
-        f"else cd runsulphur && git pull --ff-only && cd ..; fi; "
-        "chmod +x runsulphur/scripts/bootstrap.sh; "
-        "exec runsulphur/scripts/bootstrap.sh"
-        "'"
-    )
-
     env_pairs = [
         {"key": "SULPHUR_VARIANT", "value": args.variant},
         {"key": "REPO_DIR", "value": "/workspace/runsulphur"},
+        {"key": "REPO_URL", "value": args.repo_url},
+        {"key": "REPO_BRANCH", "value": args.branch},
     ]
     if args.hf_token:
         env_pairs.append({"key": "HF_TOKEN", "value": args.hf_token})
+    if args.pubkey:
+        pubkey = Path(args.pubkey).read_text().strip()
+        env_pairs.append({"key": "PUBLIC_KEY", "value": pubkey})
 
     variables: dict[str, Any] = {
         "input": {
@@ -109,7 +102,6 @@ def deploy(args: argparse.Namespace) -> None:
             "volumeMountPath": "/workspace",
             "ports": "8000/http,8188/http,22/tcp",
             "env": env_pairs,
-            "dockerArgs": docker_args,
             "cloudType": "SECURE",
         }
     }
@@ -208,6 +200,7 @@ def main() -> int:
     pd.add_argument("--variant", default="bf16", choices=["bf16", "fp8mixed", "distil"])
     pd.add_argument("--name", default="sulphur2-api")
     pd.add_argument("--hf-token", default=os.environ.get("HF_TOKEN"))
+    pd.add_argument("--pubkey", default=".ssh/runpod.pub", help="Path to SSH public key for root access")
 
     for name, fn in (("wait", wait), ("status", status), ("stop", stop), ("terminate", terminate)):
         s = sub.add_parser(name)

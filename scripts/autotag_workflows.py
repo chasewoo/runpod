@@ -34,8 +34,10 @@ def set_title(node: dict, title: str) -> None:
     node.setdefault("_meta", {})["title"] = title
 
 
-def _score_negative(text: str) -> int:
-    t = (text or "").lower()
+def _score_negative(text) -> int:
+    if not isinstance(text, str):
+        return 0  # connection-bound input; cannot judge from graph alone
+    t = text.lower()
     return sum(1 for h in NEG_HINTS if h in t)
 
 
