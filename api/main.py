@@ -10,7 +10,8 @@ from typing import Optional
 
 import httpx
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from .comfy_client import ComfyClient, find_video_outputs
 from .schemas import GenerateRequest, JobState
@@ -49,6 +50,18 @@ def _workflow_path(mode: str, variant: str) -> Path:
 
 
 app = FastAPI(title="Sulphur-2 API", version="0.1.0")
+
+STATIC_DIR = Path(__file__).parent / "static"
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def index():
+    index_html = STATIC_DIR / "index.html"
+    if not index_html.exists():
+        return HTMLResponse("<h1>Sulphur-2 API</h1><p>UI not bundled. See /docs.</p>")
+    return HTMLResponse(index_html.read_text())
 
 # job_id -> JobState
 JOBS: dict[str, JobState] = {}

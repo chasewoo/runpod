@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sulphur-2 video generator</title>
+  <style>
+    :root {
+      --bg: #0c0d11;
+      --panel: #161821;
+      --panel-2: #1d2030;
+      --border: #2a2e42;
+      --text: #e7e9f1;
+      --muted: #8a8fa7;
+      --accent: #6f7bff;
+      --accent-dim: #3a3f73;
+      --ok: #4ade80;
+      --err: #f87171;
+      --warn: #fbbf24;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh;
+    }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.01em; }
+    .sub { color: var(--muted); margin-bottom: 24px; font-size: 13px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 10px; padding: 18px;
+    }
+    .card h2 { margin: 0 0 14px; font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; }
+    input[type=text], input[type=number], textarea, select {
+      width: 100%; background: var(--panel-2); border: 1px solid var(--border);
+      color: var(--text); padding: 8px 10px; border-radius: 6px; font: inherit;
+    }
+    textarea { resize: vertical; min-height: 70px; }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .row > div > label { display:block; }
+    button {
+      background: var(--accent); color: white; border: 0; padding: 10px 16px;
+      border-radius: 6px; font: inherit; font-weight: 600; cursor: pointer;
+    }
+    button:hover:not(:disabled) { filter: brightness(1.1); }
+    button:disabled { background: var(--accent-dim); cursor: not-allowed; }
+    button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); font-weight: 400; }
+    .dropzone {
+      border: 1px dashed var(--border); border-radius: 8px; padding: 28px;
+      text-align: center; color: var(--muted); cursor: pointer; transition: border-color .15s, background .15s;
+    }
+    .dropzone:hover, .dropzone.drag { border-color: var(--accent); background: var(--panel-2); }
+    .dropzone.has-image { padding: 0; border-style: solid; overflow: hidden; }
+    .dropzone img { width: 100%; display: block; }
+    .meta { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .progress {
+      height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden;
+    }
+    .progress > div {
+      height: 100%; background: var(--accent); width: 0%; transition: width .3s ease;
+    }
+    .status-line { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; color: var(--muted); }
+    .status-line .state { color: var(--text); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+    .state.completed { color: var(--ok); }
+    .state.error     { color: var(--err); }
+    .state.running   { color: var(--warn); }
+    .video-wrap {
+      background: #000; border-radius: 8px; overflow: hidden; aspect-ratio: 16/10;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--muted);
+    }
+    .video-wrap video { width: 100%; height: 100%; object-fit: contain; }
+    .actions { display: flex; gap: 10px; margin-top: 12px; }
+    .actions button, .actions a {
+      flex: 1; text-align: center;
+      padding: 9px 12px; border-radius: 6px; text-decoration: none; font-weight: 600;
+    }
+    .actions a.dl { background: var(--accent); color: white; }
+    .actions button.again { background: transparent; border: 1px solid var(--border); color: var(--text); font-weight: 400; }
+    pre.err {
+      background: #2a0d0d; border: 1px solid #5b2020; color: #fca5a5;
+      padding: 10px; border-radius: 6px; white-space: pre-wrap; word-break: break-word; max-height: 260px; overflow: auto;
+      font-size: 12px;
+    }
+    .health {
+      display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted);
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    .dot.ok  { background: var(--ok); }
+    .dot.bad { background: var(--err); }
+    details { margin-top: 12px; }
+    details > summary { color: var(--muted); cursor: pointer; font-size: 13px; user-select: none; }
+    details[open] > summary { color: var(--text); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Sulphur-2 video generator</h1>
+    <div class="sub">
+      <span class="health" id="health"><span class="dot"></span><span id="health-text">checking…</span></span>
+    </div>
+
+    <div class="grid">
+      <!-- LEFT: inputs -->
+      <div class="card">
+        <h2>Inputs</h2>
+
+        <label for="prompt">Prompt</label>
+        <textarea id="prompt" placeholder="a serene mountain lake at sunrise, mist rolling over the water, slow cinematic camera move"></textarea>
+
+        <details>
+          <summary>Negative prompt</summary>
+          <textarea id="neg" style="margin-top:8px">low quality, blurry, distorted</textarea>
+        </details>
+
+        <div class="row" style="margin-top:14px">
+          <div>
+            <label for="mode">Mode</label>
+            <select id="mode">
+              <option value="i2v" selected>Image → Video (works)</option>
+              <option value="t2v">Text → Video (needs workflow patch)</option>
+            </select>
+          </div>
+          <div>
+            <label for="variant">Variant</label>
+            <select id="variant">
+              <option value="distil" selected>Distilled (fast, 8 steps)</option>
+              <option value="base">Base (quality, 30 steps)</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="image-area">
+          <label>Input image (i2v)</label>
+          <div id="drop" class="dropzone">Click or drop an image</div>
+          <input id="file" type="file" accept="image/*" style="display:none" />
+          <div class="meta" id="img-meta"></div>
+        </div>
+
+        <div class="row" style="margin-top:14px">
+          <div>
+            <label for="width">Width</label>
+            <input id="width" type="number" min="256" max="1920" step="32" value="704" />
+          </div>
+          <div>
+            <label for="height">Height</label>
+            <input id="height" type="number" min="256" max="1920" step="32" value="480" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="dur">Duration (s)</label>
+            <input id="dur" type="number" min="0.5" max="20" step="0.5" value="3" />
+          </div>
+          <div>
+            <label for="fps">FPS</label>
+            <input id="fps" type="number" min="8" max="60" value="24" />
+          </div>
+        </div>
+
+        <details>
+          <summary>Advanced</summary>
+          <div class="row" style="margin-top:8px">
+            <div>
+              <label for="steps">Steps</label>
+              <input id="steps" type="number" min="1" max="100" value="8" />
+            </div>
+            <div>
+              <label for="cfg">CFG</label>
+              <input id="cfg" type="number" min="0" max="20" step="0.1" value="2.5" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label for="seed">Seed (blank = random)</label>
+              <input id="seed" type="number" placeholder="random" />
+            </div>
+            <div style="display:flex;align-items:flex-end">
+              <button class="secondary" id="seed-rand" type="button" style="width:100%;padding:8px">🎲 Randomize</button>
+            </div>
+          </div>
+        </details>
+
+        <button id="go" style="width:100%;margin-top:16px">Generate</button>
+      </div>
+
+      <!-- RIGHT: output -->
+      <div class="card">
+        <h2>Output</h2>
+
+        <div id="status-block" style="display:none;margin-bottom:12px">
+          <div class="status-line">
+            <span><span class="state" id="state">queued</span> · <span id="job">—</span></span>
+            <span id="elapsed">0s</span>
+          </div>
+          <div class="progress"><div id="bar"></div></div>
+        </div>
+
+        <div class="video-wrap" id="video-wrap">
+          <div style="text-align:center;padding:24px">
+            <div style="font-size:36px;opacity:.3">▶</div>
+            <div style="margin-top:8px;font-size:13px">No video yet</div>
+            <div style="font-size:11px;margin-top:4px">Fill the form and click Generate</div>
+          </div>
+        </div>
+
+        <div class="actions" id="actions" style="display:none">
+          <a id="download" class="dl" download="">Download mp4</a>
+          <button class="again" id="again">New job</button>
+        </div>
+
+        <pre class="err" id="err" style="display:none"></pre>
+      </div>
+    </div>
+
+    <div class="sub" style="margin-top:24px;text-align:center">
+      API at <code id="base-url"></code> · ComfyUI at <code id="comfy-url"></code>
+    </div>
+  </div>
+
+<script>
+const BASE = location.origin;
+const COMFY_BASE = BASE.replace(/-8000\./, "-8188.");
+document.getElementById("base-url").textContent = BASE;
+document.getElementById("comfy-url").textContent = COMFY_BASE;
+
+const $ = (id) => document.getElementById(id);
+
+// ──────────────────────────────────────────────────────────────
+// Health probe
+async function probe() {
+  try {
+    const r = await fetch(`${BASE}/health`);
+    const j = await r.json();
+    const ok = j.comfy === "ok";
+    $("health").querySelector(".dot").className = "dot " + (ok ? "ok" : "bad");
+    $("health-text").textContent = `api ${j.api}, comfy ${j.comfy}`;
+  } catch (e) {
+    $("health").querySelector(".dot").className = "dot bad";
+    $("health-text").textContent = "api unreachable";
+  }
+}
+probe();
+setInterval(probe, 15000);
+
+// ──────────────────────────────────────────────────────────────
+// Image upload (i2v)
+let imageBase64 = null;
+
+function setImage(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const dataUrl = reader.result;
+    imageBase64 = dataUrl.split(",")[1]; // strip "data:image/png;base64,"
+    $("drop").classList.add("has-image");
+    $("drop").innerHTML = `<img src="${dataUrl}" />`;
+    $("img-meta").textContent = `${file.name} · ${(file.size/1024).toFixed(1)} KB`;
+  };
+  reader.readAsDataURL(file);
+}
+
+$("drop").addEventListener("click", () => $("file").click());
+$("file").addEventListener("change", (e) => setImage(e.target.files[0]));
+$("drop").addEventListener("dragover", (e) => {
+  e.preventDefault();
+  $("drop").classList.add("drag");
+});
+$("drop").addEventListener("dragleave", () => $("drop").classList.remove("drag"));
+$("drop").addEventListener("drop", (e) => {
+  e.preventDefault();
+  $("drop").classList.remove("drag");
+  setImage(e.dataTransfer.files[0]);
+});
+
+// ──────────────────────────────────────────────────────────────
+// Mode toggle hides/shows image input
+$("mode").addEventListener("change", () => {
+  $("image-area").style.display = $("mode").value === "i2v" ? "" : "none";
+});
+
+// Variant defaults
+$("variant").addEventListener("change", () => {
+  const distil = $("variant").value === "distil";
+  $("steps").value = distil ? 8 : 30;
+  $("cfg").value = distil ? 2.5 : 3.0;
+});
+
+$("seed-rand").addEventListener("click", () => {
+  $("seed").value = Math.floor(Math.random() * 1e9);
+});
+
+// ──────────────────────────────────────────────────────────────
+// Submit
+let pollHandle = null;
+let elapsedHandle = null;
+let t0 = 0;
+
+async function generate() {
+  $("err").style.display = "none";
+  $("actions").style.display = "none";
+  $("video-wrap").innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted)"><div style="font-size:36px;opacity:.3">⏳</div><div style="margin-top:8px;font-size:13px">Submitting…</div></div>';
+  $("go").disabled = true;
+
+  const mode = $("mode").value;
+  const payload = {
+    prompt: $("prompt").value.trim(),
+    negative_prompt: $("neg").value.trim(),
+    mode,
+    variant: $("variant").value,
+    width: +$("width").value,
+    height: +$("height").value,
+    duration_seconds: +$("dur").value,
+    fps: +$("fps").value,
+    steps: +$("steps").value,
+    cfg: +$("cfg").value,
+  };
+  if ($("seed").value.trim() !== "") payload.seed = +$("seed").value;
+  if (mode === "i2v") {
+    if (!imageBase64) {
+      showError("i2v mode needs an input image. Click the drop zone to upload one.");
+      $("go").disabled = false;
+      return;
+    }
+    payload.image_b64 = imageBase64;
+  }
+  if (!payload.prompt) {
+    showError("Prompt is required.");
+    $("go").disabled = false;
+    return;
+  }
+
+  let job;
+  try {
+    const r = await fetch(`${BASE}/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!r.ok) {
+      const body = await r.text();
+      throw new Error(`HTTP ${r.status} from /generate\n${body}`);
+    }
+    job = await r.json();
+  } catch (e) {
+    showError(e.message || String(e));
+    $("go").disabled = false;
+    return;
+  }
+
+  $("job").textContent = job.job_id;
+  $("status-block").style.display = "";
+  startElapsed();
+  poll(job.job_id);
+}
+
+function startElapsed() {
+  t0 = Date.now();
+  if (elapsedHandle) clearInterval(elapsedHandle);
+  elapsedHandle = setInterval(() => {
+    const s = (Date.now() - t0) / 1000;
+    $("elapsed").textContent = s < 60 ? `${s.toFixed(0)}s` : `${Math.floor(s/60)}m${(s%60).toFixed(0).padStart(2,"0")}s`;
+  }, 500);
+}
+
+function stopElapsed() {
+  if (elapsedHandle) { clearInterval(elapsedHandle); elapsedHandle = null; }
+}
+
+async function poll(jid) {
+  if (pollHandle) clearTimeout(pollHandle);
+  let s;
+  try {
+    const r = await fetch(`${BASE}/status/${jid}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status} on /status/${jid}`);
+    s = await r.json();
+  } catch (e) {
+    showError(e.message || String(e));
+    $("go").disabled = false;
+    stopElapsed();
+    return;
+  }
+
+  $("state").textContent = s.state;
+  $("state").className = "state " + s.state;
+  $("bar").style.width = `${Math.max(2, s.progress*100)}%`;
+
+  if (s.state === "completed") {
+    stopElapsed();
+    const url = `${BASE}/download/${jid}`;
+    $("video-wrap").innerHTML = `<video src="${url}" controls autoplay></video>`;
+    $("download").href = url;
+    $("download").download = `${jid}.mp4`;
+    $("actions").style.display = "";
+    $("go").disabled = false;
+  } else if (s.state === "error") {
+    stopElapsed();
+    showError(s.error || "unknown error");
+    $("go").disabled = false;
+  } else {
+    pollHandle = setTimeout(() => poll(jid), 2500);
+  }
+}
+
+function showError(msg) {
+  $("err").style.display = "";
+  $("err").textContent = msg;
+}
+
+$("go").addEventListener("click", generate);
+$("again").addEventListener("click", () => {
+  $("status-block").style.display = "none";
+  $("actions").style.display = "none";
+  $("video-wrap").innerHTML = '<div style="text-align:center;padding:24px"><div style="font-size:36px;opacity:.3">▶</div><div style="margin-top:8px;font-size:13px">No video yet</div></div>';
+  $("err").style.display = "none";
+});
+</script>
+</body>
+</html>
